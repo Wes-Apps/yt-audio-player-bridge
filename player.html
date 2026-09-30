@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YT Audio Player Bridge</title>
+<style>html,body{margin:0;width:100%;height:100%;background:#111;overflow:hidden}#player{width:100%;height:100%;min-width:200px;min-height:200px}iframe{width:100%;height:100%;border:0}</style>
+</head>
+<body>
+<div id="player"></div>
+<script>
+const params=new URLSearchParams(location.search);
+const video=params.get('video');
+const autoplay=params.get('autoplay')==='1';
+let yt=null,ready=false;
+function makePlayer(){
+ if(!video)return;
+ yt=document.createElement('iframe');
+ yt.allow='autoplay; encrypted-media; picture-in-picture';
+ yt.referrerPolicy='strict-origin-when-cross-origin';
+ yt.src='https://www.youtube.com/embed/'+encodeURIComponent(video)+'?enablejsapi=1&playsinline=1&controls=1&rel=0&fs=1&autoplay='+(autoplay?1:0)+'&origin='+encodeURIComponent(location.origin);
+ document.getElementById('player').appendChild(yt);
+}
+function sendToYT(func,args){
+ if(!yt?.contentWindow)return;
+ yt.contentWindow.postMessage(JSON.stringify({event:'command',func,args:args||[],id:'yta'}),'https://www.youtube.com');
+}
+window.addEventListener('message',e=>{
+ if(e.source===window.parent && e.data?.type==='YTA_COMMAND'){
+   sendToYT(e.data.func,e.data.args);
+   return;
+ }
+ if(e.source===window.parent && e.data?.type==='YTA_LISTENING'){
+   if(yt?.contentWindow)yt.contentWindow.postMessage(JSON.stringify({event:'listening',id:'yta',channel:'yta'}),'https://www.youtube.com');
+   return;
+ }
+ if(e.origin==='https://www.youtube.com' && e.source===yt?.contentWindow){
+   window.parent.postMessage(e.data,'*');
+ }
+});
+makePlayer();
+</script>
+</body>
+</html>
